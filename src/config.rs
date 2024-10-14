@@ -44,6 +44,7 @@ pub struct FanConfig {
     pub high_temp: u8,
     pub speed_curve: SpeedCurve,
     pub always_full_speed: bool,
+    pub max_allowed_speed: u32,
 }
 
 impl FanConfig {
@@ -56,7 +57,8 @@ impl FanConfig {
             .set("high_temp", self.high_temp.to_string())
             .set("speed_curve", self.speed_curve.to_string())
             .set("always_full_speed", self.always_full_speed.to_string())
-    }
+            .set("max_allowed_speed", self.max_allowed_speed.to_string())
+        }
 }
 
 impl Default for FanConfig {
@@ -66,6 +68,7 @@ impl Default for FanConfig {
             high_temp: 75,
             speed_curve: SpeedCurve::Linear,
             always_full_speed: false,
+            max_allowed_speed: 6000,
         }
     }
 }
@@ -81,11 +84,27 @@ impl TryFrom<&ini::Properties> for FanConfig {
                 .map_err(|_| Error::InvalidConfigValue(key))
         }
 
+        fn get_value_optional<V: FromStr>(
+            properties: &ini::Properties,
+            key: &'static str,
+        ) -> Result<Option<V>> {
+            match properties.get(key) {
+                Some(value_str) => value_str
+                    .parse()
+                    .map_err(|_| Error::InvalidConfigValue(key))
+                    .map(Some),
+                None => Ok(None),
+            }
+        }
+        
+
         Ok(Self {
             low_temp: get_value(properties, "low_temp")?,
             high_temp: get_value(properties, "high_temp")?,
             speed_curve: get_value(properties, "speed_curve")?,
             always_full_speed: get_value(properties, "always_full_speed")?,
+            max_allowed_speed: get_value_optional(properties, "max_allowed_speed")?
+                .unwrap_or(6000),
         })
     }
 }

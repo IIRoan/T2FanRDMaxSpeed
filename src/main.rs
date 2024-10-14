@@ -141,7 +141,7 @@ fn start_temp_loop(
     mut temp_buffer: String,
     mut cpu_temp_file: std::fs::File,
     mut gpu_temp_file: Option<std::fs::File>,
-    fans: &NonEmptyVec<FanController>,
+    fans: &mut NonEmptyVec<FanController>,
 ) -> Result<()> {
     let cancellation_token = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(SIGINT, cancellation_token.clone()).map_err(Error::Signal)?;
@@ -175,7 +175,7 @@ fn start_temp_loop(
             std::thread::sleep(std::time::Duration::from_secs(1));
         } else {
             last_temp = mean_temp;
-            for fan in fans {
+            for fan in fans.iter_mut() {
                 fan.set_speed(fan.calc_speed(mean_temp as u8))?;
             }
 
@@ -196,18 +196,18 @@ fn real_main() -> Result<()> {
     let mut temp_buffer = String::new();
 
     let fan_paths = find_fan_paths()?;
-    let fans = load_fan_configs(fan_paths)?;
+    let mut fans = load_fan_configs(fan_paths)?; // Make fans mutable
     let cpu_temp_file = find_cpu_temp_file(&mut temp_buffer)?;
     let gpu_temp_file = find_gpu_temp_file(&mut temp_buffer)?;
 
     println!();
-    for fan in &fans {
+    for fan in fans.iter_mut() {
         fan.set_manual(true)?;
     }
 
-    let res = start_temp_loop(temp_buffer, cpu_temp_file, gpu_temp_file, &fans);
+    let res = start_temp_loop(temp_buffer, cpu_temp_file, gpu_temp_file, &mut fans);
     println!("T2 Fan Daemon is shutting down...");
-    for fan in fans {
+    for fan in fans.iter_mut() {
         fan.set_manual(false)?;
     }
 
